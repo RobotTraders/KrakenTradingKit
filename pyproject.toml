@@ -1,0 +1,22 @@
+[project]
+name = "kraken-kit"
+version = "0.1.0"
+license = "AGPL-3.0-only"
+requires-python = ">=3.12"
+authors = [
+    { name = "Robot Traders OÜ" },
+]
+dependencies = [
+    "requests>=2.31",
+    "pandas>=2.2",
+    "python-dotenv>=1.0",
+    "jupyter>=1.0",
+    "ipykernel>=6.29",
+]
+
+[project.urls]
+Repository = "https://github.com/RobotTraders/KrakenTradingKit"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
