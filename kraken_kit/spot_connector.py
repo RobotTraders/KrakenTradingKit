@@ -146,11 +146,11 @@ class SpotConnector:
 
         data: dict[str, Any] = {"txid": txid, "pair": symbol}
         if limit_price is not None:
-            data["price"] = self._fmt_price(symbol, limit_price)
+            data["price"] = self.format_price(symbol, limit_price)
         if trigger_price is not None:
-            data["price2"] = self._fmt_price(symbol, trigger_price)
+            data["price2"] = self.format_price(symbol, trigger_price)
         if volume is not None:
-            data["volume"] = self._fmt_qty(symbol, volume)
+            data["volume"] = self.format_qty(symbol, volume)
         if oflags is not None:
             data["oflags"] = oflags
         if deadline is not None:
@@ -266,11 +266,29 @@ class SpotConnector:
             }
         return self._symbol_info_cache[symbol]
 
-    def _fmt_qty(self, symbol: str, qty: float) -> str:
+    def format_qty(self, symbol: str, qty: float) -> str:
+        """Truncate ``qty`` to the pair's allowed precision.
+
+        Args:
+            symbol: Spot pair (e.g. ``"XBTUSDC"``).
+            qty: Raw quantity to format.
+
+        Returns:
+            Quantity as a string at the pair's ``qty_decimals``.
+        """
         info = self._get_symbol_info(symbol)
         return str(truncate_qty(qty, info["qty_decimals"]))
 
-    def _fmt_price(self, symbol: str, price: float) -> str:
+    def format_price(self, symbol: str, price: float) -> str:
+        """Round ``price`` to the pair's tick size.
+
+        Args:
+            symbol: Spot pair (e.g. ``"XBTUSDC"``).
+            price: Raw price.
+
+        Returns:
+            Price as a string aligned to the pair's ``tick_size``.
+        """
         info = self._get_symbol_info(symbol)
         return str(format_price(price, info["tick_size"]))
 
@@ -378,17 +396,17 @@ class SpotConnector:
             "pair": symbol,
             "type": side,
             "ordertype": ordertype,
-            "volume": self._fmt_qty(symbol, volume),
+            "volume": self.format_qty(symbol, volume),
         }
         if price is not None:
             data["price"] = (
                 str(price) if isinstance(price, str)
-                else self._fmt_price(symbol, price)
+                else self.format_price(symbol, price)
             )
         if trigger_price is not None:
             data["price2"] = (
                 str(trigger_price) if isinstance(trigger_price, str)
-                else self._fmt_price(symbol, trigger_price)
+                else self.format_price(symbol, trigger_price)
             )
         if ordertype != "market":
             data["timeinforce"] = time_in_force
@@ -482,22 +500,22 @@ class SpotConnector:
 
         close_price_str = (
             str(close_price) if isinstance(close_price, str)
-            else self._fmt_price(symbol, close_price)
+            else self.format_price(symbol, close_price)
         )
         data: dict[str, Any] = {
             "pair": symbol,
             "type": side,
             "ordertype": ordertype,
-            "volume": self._fmt_qty(symbol, volume),
+            "volume": self.format_qty(symbol, volume),
             "close[ordertype]": close_type,
             "close[price]": close_price_str,
         }
         if price is not None:
-            data["price"] = self._fmt_price(symbol, price)
+            data["price"] = self.format_price(symbol, price)
         if close_limit_price is not None:
             close_limit_price_str = (
                 str(close_limit_price) if isinstance(close_limit_price, str)
-                else self._fmt_price(symbol, close_limit_price)
+                else self.format_price(symbol, close_limit_price)
             )
             data["close[price2]"] = close_limit_price_str
         if ordertype != "market":
