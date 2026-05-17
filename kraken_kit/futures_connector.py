@@ -242,16 +242,86 @@ class FuturesConnector:
         flex = accounts.get("flex", {})
         return flex.get("currencies", {}).get(currency, {})
 
-    def get_funding_rates(self, symbol: str) -> list[dict[str, Any]]:
-        """Fetch historical funding rates.
+    def get_funding_rate(self, symbol: str) -> dict[str, Any]:
+        """Fetch the current funding rate and the next predicted rate.
 
         Args:
             symbol: Futures symbol (e.g. ``"PF_XBTUSD"``).
+
+        Returns:
+            Dict with ``current`` and ``predicted`` floats. Positive means
+            longs pay shorts (perp trading above spot). Negative means
+            shorts pay longs (perp trading below spot).
+        """
+        ticker = self.get_ticker(symbol)
+        return {
+            "current": float(ticker.get("fundingRate", 0)),
+            "predicted": float(ticker.get("fundingRatePrediction", 0)),
+        }
+
+    def get_funding_rate_history(
+        self,
+        symbol: str,
+        start_date: str | int | None = None,
+        end_date: str | int | None = None,
+    ) -> pd.DataFrame:
+        """Fetch historical funding rates as a DataFrame.
+
+        Args:
+            symbol: Futures symbol (e.g. ``"PF_XBTUSD"``).
+            start_date: Start date. Accepts ``"2025-01-01"`` or UNIX timestamp.
+            end_date: End date. Accepts ``"2025-06-01"`` or UNIX timestamp.
+                If ``None``, returns data up to now.
+
+        Returns:
+            DataFrame with columns ``fundingRate`` and ``relativeFundingRate``,
+            indexed by a ``time`` DatetimeIndex sorted ascending.
         """
         url = "https://futures.kraken.com/derivatives/api/v4/historicalfundingrates"
         resp = self._client.raw_get(url, params={"symbol": symbol})
         result = _handle_response(resp)
-        return result.get("rates", [])
+        rates = result.get("rates", [])
+
+        empty_columns = ["fundingRate", "relativeFundingRate"]
+        if not rates:
+            empty = pd.DataFrame(columns=empty_columns)
+            empty.index = pd.DatetimeIndex([], name="time")
+            return empty
+
+        df = pd.DataFrame(rates)
+        df["time"] = pd.to_datetime(df["timestamp"])
+        for col in ("fundingRate", "relativeFundingRate"):
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col])
+        df = df.set_index("time").sort_index()
+        df = df[[c for c in empty_columns if c in df.columns]]
+
+        if start_date is not None:
+            start_ts = pd.to_datetime(parse_date(start_date), unit="s", utc=True)
+            if df.index.tz is None:
+                start_ts = start_ts.tz_localize(None)
+            df = df[df.index >= start_ts]
+        if end_date is not None:
+            end_ts = pd.to_datetime(parse_date(end_date), unit="s", utc=True)
+            if df.index.tz is None:
+                end_ts = end_ts.tz_localize(None)
+            df = df[df.index <= end_ts]
+
+        return df
+
+    def get_open_interest(self, symbol: str) -> float:
+        """Fetch the current open interest.
+
+        Args:
+            symbol: Futures symbol (e.g. ``"PF_XBTUSD"``).
+
+        Returns:
+            Open interest as a float. Rising open interest on a price move
+            signals new positions opening; falling open interest signals
+            existing positions closing.
+        """
+        ticker = self.get_ticker(symbol)
+        return float(ticker.get("openInterest", 0))
 
     def get_instrument_info(self, symbol: str) -> dict[str, Any]:
         """Fetch trading precision for a futures instrument.
