@@ -144,7 +144,7 @@ class FuturesConnector:
         if isinstance(price, str):
             return price
         info = self._get_instrument_info(symbol)
-        return str(format_price(price, info["tick_size"]))
+        return format_price(price, info["tick_size"])
 
     def cancel_all(self, symbol: str | None = None) -> dict[str, Any]:
         """Cancel all open orders, optionally filtered by symbol.

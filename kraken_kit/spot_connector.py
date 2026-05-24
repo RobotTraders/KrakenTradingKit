@@ -290,7 +290,7 @@ class SpotConnector:
             Price as a string aligned to the pair's ``tick_size``.
         """
         info = self._get_symbol_info(symbol)
-        return str(format_price(price, info["tick_size"]))
+        return format_price(price, info["tick_size"])
 
     def get_asset_pairs(self, pair: str | None = None) -> dict[str, Any]:
         """Fetch available trading pairs.

@@ -1,4 +1,5 @@
 import math
+from decimal import Decimal
 
 import pandas as pd
 
@@ -59,6 +60,14 @@ def truncate_qty(qty: float, decimals: int) -> float:
     return math.floor(qty * factor) / factor
 
 
-def format_price(price: float, tick_size: float) -> float:
-    """Round price to the nearest valid tick."""
-    return round(round(price / tick_size) * tick_size, 10)
+def format_price(price: float, tick_size: float) -> str:
+    """Round price to the nearest valid tick, plain-decimal notation.
+
+    Returns a string instead of a float so micro-cap perpetuals with
+    tick sizes ≤ 1e-4 do not emit scientific notation (which Kraken's
+    own /tickers endpoint never uses).
+    """
+    raw = Decimal(str(price))
+    step = Decimal(str(tick_size))
+    aligned = (raw / step).to_integral_value() * step
+    return format(aligned, "f")
