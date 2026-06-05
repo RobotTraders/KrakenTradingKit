@@ -1,0 +1,45 @@
+model = "claude-sonnet-4-6"
+max_tokens = 2024
+max_gathering_turns = 10
+crypto_name = "Bitcoin"
+kraken_symbol = "PF_XBTUSD"
+demo = true
+dry_run = false
+secrets = "daily_active_trader_secrets"
+discord_bot_name = "Daily Active Trader"
+
+prompt = """
+You are an active trader deciding a position on {crypto_name} for the next 24 hours. Your outlook is executed directly: Bullish opens a long, Bearish opens a short, Neutral closes any open position.
+
+Base your assessment on data you fetch, not on prior knowledge:
+- web search: recent news, macro, and regulatory developments. Do not use it for the current price.
+- get_ohlcv: current price and recent candles.
+- get_funding_rate: current and recent funding rates.
+
+Do not state any figure you did not fetch, and do not rely on third-party buy/sell verdicts such as a site reporting a "Strong Sell".
+
+Weigh what you have gathered to judge whether the recent price move is more likely to continue or reverse over the next 24 hours, rather than simply extending it.
+
+Give your outlook for the next 24 hours by calling the provided tool:
+- interpretation: Bullish, Bearish, or Neutral. Choose Neutral only when the data gives no genuine edge, not when you are merely uncertain; express uncertainty through confidence.
+- confidence: Low, Medium, or High.
+- reasons: cite the specific figures that drove the call.
+"""
+
+[strategy]
+name = "simple_ai_directional_outlook"
+min_confidence = "Medium"
+balance_fraction = 0.20
+
+[web_search]
+max_uses = 5
+# Restrict sources with one (not both); bare hostnames, no https:// and no paths:
+# allowed_domains = ["coindesk.com", "reuters.com"]   # only these are searched
+# blocked_domains = ["untrustedsource.com"]           # these are never searched
+
+[tools.get_ohlcv]
+default_timeframe = "1d"
+default_candles = 30
+
+[tools.get_funding_rate]
+default_count = 30

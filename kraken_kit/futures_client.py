@@ -14,23 +14,26 @@ from .rate_limiter import RateLimiter, FUTURES_LIMITS
 class FuturesClient:
     """Transport and authentication layer for the Kraken Futures REST API."""
 
-    BASE_URL = "https://futures.kraken.com/derivatives/api/v3"
+    LIVE_BASE_URL = "https://futures.kraken.com/derivatives/api/v3"
+    DEMO_BASE_URL = "https://demo-futures.kraken.com/derivatives/api/v3"
     CHARTS_URL = "https://futures.kraken.com/api/charts/v1"
 
-    def __init__(self, api_key: str, api_secret: str) -> None:
+    def __init__(self, api_key: str, api_secret: str, *, demo: bool = False) -> None:
         self._api_key = api_key
         self._api_secret = api_secret
         self._authenticated = True
+        self._base_url = self.DEMO_BASE_URL if demo else self.LIVE_BASE_URL
         self._session = requests.Session()
         self._limiter = RateLimiter(**FUTURES_LIMITS["default"])
 
     @classmethod
-    def public(cls) -> Self:
+    def public(cls, *, demo: bool = False) -> Self:
         """Create an unauthenticated client for public endpoints only."""
         instance = object.__new__(cls)
         instance._api_key = None
         instance._api_secret = None
         instance._authenticated = False
+        instance._base_url = cls.DEMO_BASE_URL if demo else cls.LIVE_BASE_URL
         instance._session = requests.Session()
         instance._limiter = RateLimiter(**FUTURES_LIMITS["default"])
         return instance
@@ -65,7 +68,7 @@ class FuturesClient:
         self._require_auth()
         nonce = str(int(time.time() * 1000))
         endpoint_path = f"/api/v3/{endpoint}"
-        url = f"{self.BASE_URL}/{endpoint}"
+        url = f"{self._base_url}/{endpoint}"
 
         if method.upper() == "GET":
             postdata = urllib.parse.urlencode(params) if params else ""
@@ -87,7 +90,7 @@ class FuturesClient:
         self, endpoint: str, params: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """GET a public endpoint and return the parsed result."""
-        url = f"{self.BASE_URL}/{endpoint}"
+        url = f"{self._base_url}/{endpoint}"
         resp = self._session.get(url, params=params)
         return _handle_response(resp)
 
