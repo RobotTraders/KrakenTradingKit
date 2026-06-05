@@ -16,6 +16,8 @@ _UUID_RE = re.compile(
 _SEND_ORDER_SUCCESS = "placed"
 _EDIT_ORDER_SUCCESS = "edited"
 
+_CHARTS_MAX_CANDLES = 2000
+
 
 def _require_send_success(result: dict[str, Any]) -> str:
     """Extract order_id from a sendorder response, raising on rejection."""
@@ -78,22 +80,24 @@ class FuturesConnector:
 
     TICKER_CACHE_TTL = 5.0
 
-    def __init__(self, api_key: str, api_secret: str) -> None:
+    def __init__(self, api_key: str, api_secret: str, *, demo: bool = False) -> None:
         """
         Args:
             api_key: Kraken Futures API key.
             api_secret: Kraken Futures API secret (base64-encoded).
+            demo: Route trading to the demo platform (``demo-futures.kraken.com``)
+                instead of live.
         """
-        self._client = FuturesClient(api_key, api_secret)
+        self._client = FuturesClient(api_key, api_secret, demo=demo)
         self._tickers_cache: list[dict[str, Any]] = []
         self._tickers_cache_time: float = 0.0
         self._instrument_cache: dict[str, dict[str, Any]] = {}
 
     @classmethod
-    def public(cls) -> Self:
+    def public(cls, *, demo: bool = False) -> Self:
         """Create an unauthenticated connector for public endpoints only."""
         instance = object.__new__(cls)
-        instance._client = FuturesClient.public()
+        instance._client = FuturesClient.public(demo=demo)
         instance._tickers_cache = []
         instance._tickers_cache_time = 0.0
         instance._instrument_cache = {}
@@ -242,6 +246,12 @@ class FuturesConnector:
         flex = accounts.get("flex", {})
         return flex.get("currencies", {}).get(currency, {})
 
+    def get_account_capital(self) -> float:
+        """Fetch total account capital in USD, excluding unrealized PnL."""
+        response = self.get_accounts()
+        accounts = response.get("accounts", response)
+        return float(accounts["flex"]["balanceValue"])
+
     def get_funding_rate(self, symbol: str) -> dict[str, Any]:
         """Fetch the current funding rate and the next predicted rate.
 
@@ -358,8 +368,9 @@ class FuturesConnector:
             end_date: End date. Accepts ``"2025-06-01"`` or UNIX timestamp.
                 If ``None``, returns data up to now.
         """
-        interval, _ = parse_timeframe(timeframe)
+        interval, minutes = parse_timeframe(timeframe)
         url = f"{self._client.CHARTS_URL}/trade/{symbol}/{interval}"
+        window_seconds = _CHARTS_MAX_CANDLES * minutes * 60
         from_ts = parse_date(start_date) if start_date is not None else None
         end_ts = parse_date(end_date) if end_date is not None else None
         all_candles: list[dict] = []
@@ -368,19 +379,20 @@ class FuturesConnector:
             params: dict[str, Any] = {}
             if from_ts is not None:
                 params["from"] = from_ts
-            if end_ts is not None:
+                page_end = from_ts + window_seconds
+                params["to"] = min(page_end, end_ts) if end_ts is not None else page_end
+            elif end_ts is not None:
                 params["to"] = end_ts
             resp = self._client.raw_get(url, params=params)
             resp.raise_for_status()
-            data = resp.json()
-            candles = data.get("candles", [])
+            candles = resp.json().get("candles", [])
             if not candles:
                 break
             all_candles.extend(candles)
             last_time = int(candles[-1]["time"]) // 1000
             if end_ts is not None and last_time >= end_ts:
                 break
-            if len(candles) < 720:
+            if len(candles) < _CHARTS_MAX_CANDLES:
                 break
             from_ts = last_time
 
