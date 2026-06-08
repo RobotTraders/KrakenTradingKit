@@ -58,9 +58,8 @@ def get_config(name: str) -> Config:
     except KeyError as e:
         raise KeyError(f"Missing field {e} referenced by the prompt in '{name}'") from e
 
-    strategy = dict(data["strategy"])
-
     try:
+        strategy = dict(data["strategy"])
         return Config(
             text=rendered,
             model=data["model"],
