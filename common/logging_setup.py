@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-LOGGER_NAME = "ai_assistant"
+LOGGER_NAME = "trading"
 _CONSOLE_FORMAT = "%(asctime)s %(levelname)s %(message)s"
 
 

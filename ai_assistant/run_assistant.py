@@ -3,15 +3,15 @@ from typing import Any
 
 import requests
 
+from common.discord_notifier import DiscordNotifier
+from common.logging_setup import configure_logging, log_event
+from common.secrets import get_secrets
 from kraken_kit.futures_connector import FuturesConnector
 from strategies import get_strategy
 
 from .claude import send_request
 from .config import get_config
-from .discord_notifier import DiscordNotifier
-from .logging_setup import configure_logging, log_event
 from .outlook import AIOutlook, OUTLOOK_SCHEMA
-from .secrets import get_secrets
 from .tools import build_tools
 
 

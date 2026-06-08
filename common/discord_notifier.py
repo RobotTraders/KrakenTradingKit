@@ -20,7 +20,7 @@ _FIELD_VALUE_MAX_LENGTH = 1024
 
 
 class DiscordNotifier:
-    """Webhook notifier that posts the AI outlook and the trading action to Discord."""
+    """Webhook notifier that posts the trading action, and the AI outlook when given, to Discord."""
 
     def __init__(self, webhook_url: str, username: str | None = None) -> None:
         """Initialize the notifier.
@@ -42,20 +42,25 @@ class DiscordNotifier:
     def send_notification(
         self,
         title: str,
-        outlook: dict[str, Any],
         action: dict[str, Any],
+        outlook: dict[str, Any] | None = None,
+        signals: dict[str, Any] | None = None,
         web_searches: list[dict[str, Any]] | None = None,
         tool_calls: list[dict[str, Any]] | None = None,
         gathering_turns: int | None = None,
         forced: bool = False,
     ) -> None:
-        """Post an embed showing the trading action, every field of the outlook, and
-        what the agent did on each gathering turn.
+        """Post an embed showing the trading action, every field of the outlook when
+        given, the signal values behind the action when given, and what the agent did
+        on each gathering turn.
 
         Args:
             title: Heading for the embed.
-            outlook: AI outlook as a mapping; each field is shown as-is.
             action: Trading action, with ``action`` and ``position`` keys.
+            outlook: AI outlook as a mapping; each field is shown as-is. When
+                ``None``, no outlook fields are rendered.
+            signals: Signal values behind the action, rendered as one field. When
+                ``None``, no signals field is rendered.
             web_searches: Web searches the AI ran, each ``{"turn", "query", "urls"}``.
             tool_calls: Tool calls the AI made, each ``{"turn", "name", "input"}``.
             gathering_turns: Gathering turns the agent loop used, if known.
@@ -66,7 +71,7 @@ class DiscordNotifier:
             requests.RequestException: The HTTP call itself failed.
         """
         embed = _build_embed(
-            title, outlook, action, web_searches, tool_calls, gathering_turns, forced
+            title, action, outlook, signals, web_searches, tool_calls, gathering_turns, forced
         )
         payload = {"embeds": [embed], "username": self._username}
 
@@ -129,8 +134,9 @@ def _agent_activity(
 
 def _build_embed(
     title: str,
-    outlook: dict[str, Any],
     action: dict[str, Any],
+    outlook: dict[str, Any] | None,
+    signals: dict[str, Any] | None,
     web_searches: list[dict[str, Any]] | None,
     tool_calls: list[dict[str, Any]] | None,
     gathering_turns: int | None,
@@ -144,7 +150,12 @@ def _build_embed(
             "inline": False,
         }
     ]
-    for key, value in outlook.items():
+    if signals:
+        listed = " · ".join(f"{key}: {value}" for key, value in signals.items())
+        fields.append(
+            {"name": "Signals", "value": listed[:_FIELD_VALUE_MAX_LENGTH], "inline": False}
+        )
+    for key, value in (outlook or {}).items():
         fields.append(
             {
                 "name": key.replace("_", " ").title(),
