@@ -6,7 +6,6 @@ import requests
 from common.discord_notifier import DiscordNotifier
 from common.logging_setup import configure_logging, log_event
 from common.secrets import get_secrets
-from kraken_kit.futures_connector import FuturesConnector
 from strategies import get_strategy
 
 from .claude import send_request
@@ -46,7 +45,8 @@ def run_assistant(config_name: str) -> dict[str, Any]:
                 secrets["discord_webhook_url"], username=config.discord_bot_name
             )
 
-        connector = FuturesConnector(
+        strategy = get_strategy(config.strategy)
+        connector = strategy.connector(
             secrets["kraken_api_key"],
             secrets["kraken_api_secret"],
             demo=config.demo,
@@ -66,8 +66,7 @@ def run_assistant(config_name: str) -> dict[str, Any]:
             max_gathering_turns=config.max_gathering_turns,
         )
 
-        strategy = get_strategy(config.strategy)
-        action = strategy(
+        action = strategy.run(
             connector,
             config.kraken_symbol,
             run.output,
