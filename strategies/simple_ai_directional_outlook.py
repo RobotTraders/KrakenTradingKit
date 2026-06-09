@@ -5,6 +5,9 @@ from kraken_kit.futures_connector import FuturesConnector
 from ai_assistant.outlook import AIOutlook
 
 
+CONNECTOR = FuturesConnector
+
+
 def simple_ai_directional_outlook(
     connector: FuturesConnector,
     symbol: str,
@@ -17,7 +20,8 @@ def simple_ai_directional_outlook(
     """Go long on a Bullish outlook, short on Bearish; otherwise hold no position,
     closing out on Neutral or on a confidence below ``min_confidence``. Holds one
     position at a time, reversing into the opposite side on a flip. Sizes each entry
-    at ``balance_fraction`` of account capital."""
+    at ``balance_fraction`` of account capital. Places the resulting orders unless
+    ``dry_run`` is set."""
     confidence_levels = ["Low", "Medium", "High"]
 
     open_position = connector.get_open_position(symbol)
